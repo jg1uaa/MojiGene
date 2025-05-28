@@ -1,5 +1,5 @@
 TARGET=MojiGene.exe
-OBJ = utf8_table.obj MojiGene.obj
+OBJ = utf8_table.obj utf8.obj MojiGene.obj
 CFLAGS = -bt=nt -c
 LFLAGS = -l=nt
 CC=wcl386
@@ -9,6 +9,9 @@ all: $(TARGET)
 utf8_table.obj: utf8_table.c
 	$(CC) $(CFLAGS) -fo=$@ $<
 
+utf8.obj: utf8.c
+	$(CC) $(CFLAGS) -fo=$@ $<
+
 MojiGene.obj: MojiGene.c
 	$(CC) $(CFLAGS) -fo=$@ $<
 
@@ -16,4 +19,4 @@ $(TARGET): $(OBJ)
 	$(CC) $(LFLAGS) -fe=$@ $(OBJ)
 
 clean:
-	rm -f $(TARGET) $(OBJ)
+	rm -f $(TARGET) $(OBJ) *.err

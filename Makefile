@@ -1,5 +1,5 @@
 TARGET=MojiGene
-OBJ = utf8_table.o MojiGene.o
+OBJ = utf8_table.o utf8.o MojiGene.o
 CFLAGS = -O2 -Wall -c -fdata-sections -ffunction-sections
 LFLAGS = -Wl,--gc-sections
 LDLIBS = 
@@ -7,6 +7,9 @@ LDLIBS =
 all: $(TARGET)
 
 utf8_table.o: utf8_table.c
+	$(CC) $(CFLAGS) $< -o $@
+
+utf8.o: utf8.c
 	$(CC) $(CFLAGS) $< -o $@
 
 MojiGene.o: MojiGene.c
