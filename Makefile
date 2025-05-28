@@ -1,10 +1,16 @@
 TARGET=MojiGene
-CFLAGS = -O2 -Wall
+OBJ = MojiGene.o
+CFLAGS = -O2 -Wall -c -fdata-sections -ffunction-sections
+LFLAGS = -Wl,--gc-sections
+LDLIBS = 
 
 all: $(TARGET)
 
-$(TARGET): MojiGene.c
+MojiGene.o: MojiGene.c
 	$(CC) $(CFLAGS) $< -o $@
 
+$(TARGET): $(OBJ)
+	$(CC) $(LFLAGS) $(OBJ) $(LDLIBS) -o $@
+
 clean:
-	rm -f $(TARGET)
+	rm -f $(TARGET) $(OBJ)
