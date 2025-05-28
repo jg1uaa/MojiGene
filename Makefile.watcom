@@ -1,0 +1,11 @@
+TARGET=MojiGene.exe
+CFLAGS = -bcl=nt
+CC=wcl386
+
+all: $(TARGET)
+
+$(TARGET): MojiGene.c
+	$(CC) $(CFLAGS) -fo=$@ $<
+
+clean:
+	rm -f $(TARGET)
