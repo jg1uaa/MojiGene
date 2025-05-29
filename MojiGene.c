@@ -69,6 +69,7 @@ static struct config keywords[] = {
 	{"NumRatio ", set_numratio, false},
 	{"SleepTime ", set_sleeptime, false},
 	{"WordPerLine ", set_wordperline, false},
+	{"UseSJIS ", set_usesjis, false},
 	{"Header ", set_header, true},
 	{"Footer ", set_footer, true},
 	{"FileName ", set_filename, false},
