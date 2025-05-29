@@ -12,6 +12,7 @@
 #include <getopt.h>
 #include <windows.h>
 #endif
+#include "utf8.h"
 
 #define CRLF "\x0d\x0a"
 #define ConfigFile "MojiGene.ini"
@@ -22,13 +23,24 @@ static int Chars = 300;
 static int NumRatio = 0x20;
 static int SleepTime = 0;
 static int WordPerLine = 5;
+static int UseSJIS = 0;
 static int CharGroup0Len;
 static int CharGroup1Len;
-static char Header[BUFSIZE] = "hr hr <bt>";
-static char Footer[BUFSIZE] = "<ar>";
+static int Header[BUFSIZE] = {
+	'h', 'r', ' ', 'h', 'r', ' ', '<', 'b', 't', '>', '\0',
+};
+static int Footer[BUFSIZE] = {
+	'<', 'a', 'r', '>', '\0',
+};
 static char FileName[BUFSIZE] = "MojiGene.txt";
-static char CharGroup0[BUFSIZE] = "abcdefghijklmnopqrstuvwxyz";
-static char CharGroup1[BUFSIZE] = "0123456789";
+static int CharGroup0[BUFSIZE] = {
+	'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',
+	'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't',
+	'u', 'v', 'w', 'x', 'y', 'z', '\0',
+};
+static int CharGroup1[BUFSIZE] = {
+	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '\0',
+};
 
 struct config {
 	char *string;
@@ -42,6 +54,7 @@ static int set_charsbywords(char *);
 static int set_numratio(char *);
 static int set_sleeptime(char *);
 static int set_wordperline(char *);
+static int set_usesjis(char *);
 static int set_header(char *);
 static int set_footer(char *);
 static int set_filename(char *);
@@ -62,6 +75,28 @@ static struct config keywords[] = {
 	{"CharGroup0 ", set_chargroup0, true},
 	{"CharGroup1 ", set_chargroup1, true},
 };
+
+static void decode_utf8(int *dst, int dstsize, char *src, bool ignore_space)
+{
+	int i, n, srcsize;
+
+	for (i = 0, srcsize = strlen(src);
+	     srcsize && i < dstsize - 1; srcsize -= n, src += n) {
+		if (ignore_space && *src == ' ') {
+			n = 1;
+			continue;
+		}
+
+		if (utf8toucs_char(src, 0, NULL) > srcsize) {
+			dst[i++] = 0xfffd; /* unknown character */
+			break;
+		}
+
+		n = utf8toucs_char(src, srcsize, &dst[i++]);
+	}
+
+	dst[i] = '\0';
+}
 
 static int set_wordlen(char *buf)
 {
@@ -99,15 +134,21 @@ static int set_wordperline(char *buf)
 	return 0;
 }
 
+static int set_usesjis(char *buf)
+{
+	UseSJIS = atoi(buf) ? 1 : 0;
+	return 0;
+}
+
 static int set_header(char *buf)
 {
-	snprintf(Header, sizeof(Header), "%s", buf);
+	decode_utf8(Header, sizeof(Header), buf, false);
 	return 0;
 }
 
 static int set_footer(char *buf)
 {
-	snprintf(Footer, sizeof(Footer), "%s", buf);
+	decode_utf8(Footer, sizeof(Footer), buf, false);
 	return 0;
 }
 
@@ -117,26 +158,42 @@ static int set_filename(char *buf)
 	return 0;
 }
 
-static void remove_space_copy(char *dst, int dstsize, char *src)
-{
-	int i;
-
-	for (i = 0; *src && i < dstsize - 1; src++)
-		if (*src != ' ') dst[i++] = *src;
-
-	dst[i] = '\0';
-}
-
 static int set_chargroup0(char *buf)
 {
-	remove_space_copy(CharGroup0, sizeof(CharGroup0), buf);
+	decode_utf8(CharGroup0, sizeof(CharGroup0), buf, true);
 	CharGroup1[0] = '\0';
 	return 0;
 }
 
 static int set_chargroup1(char *buf)
 {
-	remove_space_copy(CharGroup1, sizeof(CharGroup1), buf);
+	decode_utf8(CharGroup1, sizeof(CharGroup1), buf, true);
+	return 0;
+}
+
+static int u_strlen(int *u_str)
+{
+	int i;
+
+	for (i = 0; u_str[i]; i++);
+
+	return i;
+}
+
+static int u_fputc(int uc, FILE *fp)
+{
+	char buf[8];
+
+	buf[UseSJIS ?
+	    ucstosjis_char(buf, sizeof(buf), uc) :
+	    ucstoutf8_char(buf, sizeof(buf), uc)] = '\0';
+
+	return fputs(buf, fp);
+}
+
+static int u_fputs(int *u_str, FILE *fp)
+{
+	while (*u_str) u_fputc(*u_str++, fp);
 	return 0;
 }
 
@@ -216,7 +273,7 @@ static void mojigene(FILE *fp)
 	int i, n;
 
 	for (i = 0; i < Chars; i++) {
-		fputc(mojigene_ch(), fp);
+		u_fputc(mojigene_ch(), fp);
 
 		n = i + 1;
 		if (n < Chars) {
@@ -236,11 +293,16 @@ static int do_main(void)
 	if (fp == NULL)
 		return -1;
 
-	if (strlen(Header)) fprintf(fp, "%s" CRLF, Header);
+	if (u_strlen(Header)) {
+		u_fputs(Header, fp);
+		fputs(CRLF, fp);
+	}
 	if (WordLen > 0 && WordPerLine > 0 &&
 	    Chars > 0 && CharGroup0Len > 0) mojigene(fp);
-	if (strlen(Footer)) fprintf(fp, "%s" CRLF, Footer);
-
+	if (u_strlen(Footer)) {
+		u_fputs(Footer, fp);
+		fputs(CRLF, fp);
+	}
 	fclose(fp);
 
 	return 0;
@@ -259,7 +321,7 @@ int main(int argc, char *argv[])
 	do_config();
 
 	/* override by command line */
-	while ((ch = getopt(argc, argv, "W:c:w:n:s:L:H:F:o:x:y:d")) != -1) {
+	while ((ch = getopt(argc, argv, "W:c:w:n:s:L:SUH:F:o:x:y:d")) != -1) {
 		if ((p = optarg) != NULL) {
 			p = skip_spaces(optarg);
 			remove_trailing_spaces(p);
@@ -272,6 +334,8 @@ int main(int argc, char *argv[])
 		case 'n': set_numratio(p); break;
 		case 's': set_sleeptime(p); break;
 		case 'L': set_wordperline(p); break;
+		case 'S': set_usesjis("1"); break;
+		case 'U': set_usesjis("0"); break;
 		case 'H': set_header(p); break;
 		case 'F': set_footer(p); break;
 		case 'o': set_filename(p); break;
@@ -281,8 +345,8 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	CharGroup0Len = strlen(CharGroup0);
-	CharGroup1Len = strlen(CharGroup1);
+	CharGroup0Len = u_strlen(CharGroup0);
+	CharGroup1Len = u_strlen(CharGroup1);
 
 	if (debug) {
 		fprintf(stderr, "WordLen = %d\n", WordLen);
@@ -290,13 +354,22 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "NumRatio = %d\n", NumRatio);
 		fprintf(stderr, "SleepTime = %d\n", SleepTime);
 		fprintf(stderr, "WordPerLine = %d\n", WordPerLine);
-		fprintf(stderr, "Header = \"%s\"\n", Header);
-		fprintf(stderr, "Footer = \"%s\"\n", Footer);
+		fprintf(stderr, "UseSJIS = %d\n", UseSJIS);
+		fputs("Header = \"", stderr);
+		u_fputs(Header, stderr);
+		fputs("\"\n", stderr);
+		fputs("Footer = \"", stderr);
+		u_fputs(Footer, stderr);
+		fputs("\"\n", stderr);
 		fprintf(stderr, "FileName = \"%s\"\n", FileName);
 		fprintf(stderr, "CharGroup0Len = %d\n", CharGroup0Len);
 		fprintf(stderr, "CharGroup1Len = %d\n", CharGroup1Len);
-		fprintf(stderr, "CharGroup0 = \"%s\"\n", CharGroup0);
-		fprintf(stderr, "CharGroup1 = \"%s\"\n", CharGroup1);
+		fputs("CharGroup0 = \"", stderr);
+		u_fputs(CharGroup0, stderr);
+		fputs("\"\n", stderr);
+		fputs("CharGroup1 = \"", stderr);
+		u_fputs(CharGroup1, stderr);
+		fputs("\"\n", stderr);
 	}
 
 #if defined(__LCC__)
