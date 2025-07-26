@@ -2,6 +2,7 @@
 
 #include <time.h>
 #include <stdlib.h>
+#include "rng.h"
 
 void initialize_random_generator(void)
 {
