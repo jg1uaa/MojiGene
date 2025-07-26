@@ -8,7 +8,7 @@ ifeq ($(rng), c)
   RNG = rng.c
 else
   RNG = rng.cpp
-  LFLAGS += -lstdc++
+  LDLIBS += -lstdc++
 endif
 
 all: $(TARGET)
