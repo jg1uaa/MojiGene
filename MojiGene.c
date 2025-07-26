@@ -6,12 +6,12 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
-#include <time.h>
 #include <unistd.h>
 #if defined(__LCC__)
 #include <getopt.h>
 #include <windows.h>
 #endif
+#include "rng.h"
 #include "utf8.h"
 
 #define CRLF "\x0d\x0a"
@@ -263,10 +263,10 @@ static int do_config(void)
 
 static int mojigene_ch(void)
 {
-	if (CharGroup1Len > 0 && (rand() & 0x7f) < NumRatio)
-		return CharGroup1[rand() % CharGroup1Len];
+	if (CharGroup1Len > 0 && random_value(0, 0x7f) < NumRatio)
+		return CharGroup1[random_value(0, CharGroup1Len - 1)];
 	else
-		return CharGroup0[rand() % CharGroup0Len];
+		return CharGroup0[random_value(0, CharGroup0Len - 1)];
 }
 			
 static void mojigene(FILE *fp)
@@ -312,13 +312,10 @@ static int do_main(void)
 int main(int argc, char *argv[])
 {
 	int ch;
-	time_t t;
 	char *p;
 	bool debug = false;
 
-	t = time(NULL);
-	srand(t);
-
+	initialize_random_generator();
 	do_config();
 
 	/* override by command line */

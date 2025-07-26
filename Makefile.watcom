@@ -1,10 +1,13 @@
 TARGET=MojiGene.exe
-OBJ = utf8_table.obj utf8.obj MojiGene.obj
+OBJ = rng.obj utf8_table.obj utf8.obj MojiGene.obj
 CFLAGS = -bt=nt -c
 LFLAGS = -l=nt
 CC=wcl386
 
 all: $(TARGET)
+
+rng.obj: rng.c
+	$(CC) $(CFLAGS) -fo=$@ $<
 
 utf8_table.obj: utf8_table.c
 	$(CC) $(CFLAGS) -fo=$@ $<
