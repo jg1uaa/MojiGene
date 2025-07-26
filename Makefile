@@ -1,12 +1,19 @@
 TARGET=MojiGene
 OBJ = rng.o utf8_table.o utf8.o MojiGene.o
 CFLAGS = -O2 -Wall -c -fdata-sections -ffunction-sections
-LFLAGS = -Wl,--gc-sections -lstdc++
+LFLAGS = -Wl,--gc-sections
 LDLIBS = 
+
+ifeq ($(rng), c)
+  RNG = rng.c
+else
+  RNG = rng.cpp
+  LFLAGS += -lstdc++
+endif
 
 all: $(TARGET)
 
-rng.o: rng.cpp
+rng.o: $(RNG)
 	$(CC) $(CFLAGS) $< -o $@
 
 utf8_table.o: utf8_table.c
