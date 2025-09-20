@@ -19,10 +19,11 @@
 #define BUFSIZE 256
 
 static int WordLen = 5;
+static int MinWordLen = 0;
 static int Chars = 300;
 static int NumRatio = 0x20;
 static int SleepTime = 0;
-static int WordPerLine = 5;
+static int CharPerLine = 34;
 static int UseSJIS = 0;
 static int CharGroup0Len;
 static int CharGroup1Len;
@@ -49,11 +50,11 @@ struct config {
 };
 
 static int set_wordlen(char *);
+static int set_minwordlen(char *);
 static int set_chars(char *);
-static int set_charsbywords(char *);
 static int set_numratio(char *);
 static int set_sleeptime(char *);
-static int set_wordperline(char *);
+static int set_charperline(char *);
 static int set_usesjis(char *);
 static int set_header(char *);
 static int set_footer(char *);
@@ -64,11 +65,11 @@ static int set_chargroup1(char *);
 static struct config keywords[] = {
 	/* need a space after keyword */
 	{"WordLen ", set_wordlen, false},
+	{"MinWordLen ", set_minwordlen, false},
 	{"Chars ", set_chars, false},
-	{"Words ", set_charsbywords, false},
 	{"NumRatio ", set_numratio, false},
 	{"SleepTime ", set_sleeptime, false},
-	{"WordPerLine ", set_wordperline, false},
+	{"CharPerLine ", set_charperline, false},
 	{"UseSJIS ", set_usesjis, false},
 	{"Header ", set_header, true},
 	{"Footer ", set_footer, true},
@@ -105,15 +106,15 @@ static int set_wordlen(char *buf)
 	return 0;
 }
 
-static int set_chars(char *buf)
+static int set_minwordlen(char *buf)
 {
-	Chars = atoi(buf);
+	MinWordLen = atoi(buf);
 	return 0;
 }
 
-static int set_charsbywords(char *buf)
+static int set_chars(char *buf)
 {
-	Chars = atoi(buf) * WordLen;
+	Chars = atoi(buf);
 	return 0;
 }
 
@@ -129,9 +130,9 @@ static int set_sleeptime(char *buf)
 	return 0;
 }
 
-static int set_wordperline(char *buf)
+static int set_charperline(char *buf)
 {
-	WordPerLine = atoi(buf);
+	CharPerLine = atoi(buf);
 	return 0;
 }
 
@@ -268,22 +269,78 @@ static int mojigene_ch(void)
 	else
 		return CharGroup0[random_value(0, CharGroup0Len - 1)];
 }
-			
-static void mojigene(FILE *fp)
+
+static int mojigene_count_char_and_chop(int *buf, int limit)
 {
 	int i, n;
 
-	for (i = 0; i < Chars; i++) {
-		u_fputc(mojigene_ch(), fp);
-
-		n = i + 1;
-		if (n < Chars) {
-			if (!(n % (WordLen * WordPerLine))) fputs(CRLF, fp);
-			else if (!(n % WordLen)) fputc(' ', fp);
+	for (i = n = 0; buf[i]; i++) {
+		if (buf[i] == ' ') {
+			if (n >= limit) {
+				buf[i] = '\0';
+				break;
+			}
+		} else {
+			n++;
 		}
 	}
 
-	fputs(CRLF, fp);
+	return n;
+}
+
+static void mojigene_fill_line(int *buf, int chars)
+{
+	int i;
+
+	for (i = 0; i < chars; i++)
+		buf[i] = mojigene_ch();
+
+	buf[i] = '\0';
+}
+
+static void mojigene_make_word(int *buf, int chars)
+{
+	int i, n, limit;
+
+	limit = (MinWordLen > 0) ? MinWordLen : WordLen;
+
+	if (limit >= chars)
+		return;
+
+	for (i = 0; ; ) {
+		if (MinWordLen > 0 && WordLen > MinWordLen)
+			n = random_value(MinWordLen, WordLen);
+		else
+			n = WordLen;
+
+		if (i) n++;
+		i += n;
+
+		if ((chars - i) <= limit)
+			break;
+
+		buf[i] = ' ';
+	}
+
+	buf[i] = '\0';
+}
+
+static void mojigene(FILE *fp)
+{
+	int i, n;
+	int *buf = calloc(CharPerLine + 1, sizeof(int));
+
+	for (i = 0; i < Chars; ) {
+		mojigene_fill_line(buf, CharPerLine);
+		mojigene_make_word(buf, CharPerLine);
+		i += mojigene_count_char_and_chop(buf, Chars - i);
+
+		for (n = 0; buf[n]; n++)
+			u_fputc(buf[n], fp);
+		fputs(CRLF, fp);
+	}
+
+	free(buf);
 }
 
 static int do_main(void)
@@ -298,7 +355,7 @@ static int do_main(void)
 		u_fputs(Header, fp);
 		fputs(CRLF, fp);
 	}
-	if (WordLen > 0 && WordPerLine > 0 &&
+	if (WordLen > 0 && CharPerLine > 0 &&
 	    Chars > 0 && CharGroup0Len > 0) mojigene(fp);
 	if (u_strlen(Footer)) {
 		u_fputs(Footer, fp);
@@ -327,11 +384,11 @@ int main(int argc, char *argv[])
 
 		switch (ch) {
 		case 'W': set_wordlen(p); break;
+		case 'w': set_minwordlen(p); break;
 		case 'c': set_chars(p); break;
-		case 'w': set_charsbywords(p); break;
 		case 'n': set_numratio(p); break;
 		case 's': set_sleeptime(p); break;
-		case 'L': set_wordperline(p); break;
+		case 'L': set_charperline(p); break;
 		case 'S': set_usesjis("1"); break;
 		case 'U': set_usesjis("0"); break;
 		case 'H': set_header(p); break;
@@ -348,10 +405,11 @@ int main(int argc, char *argv[])
 
 	if (debug) {
 		fprintf(stderr, "WordLen = %d\n", WordLen);
+		fprintf(stderr, "MinWordLen = %d\n", MinWordLen);
 		fprintf(stderr, "Chars = %d\n", Chars);
 		fprintf(stderr, "NumRatio = %d\n", NumRatio);
 		fprintf(stderr, "SleepTime = %d\n", SleepTime);
-		fprintf(stderr, "WordPerLine = %d\n", WordPerLine);
+		fprintf(stderr, "CharPerLine = %d\n", CharPerLine);
 		fprintf(stderr, "UseSJIS = %d\n", UseSJIS);
 		fputs("Header = \"", stderr);
 		u_fputs(Header, stderr);
