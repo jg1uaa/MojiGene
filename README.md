@@ -8,7 +8,7 @@
 
 ## 使い方
 
-MojiGene.ini に多少書いたのでそちらを参照。
+[MojiGene.ini](MojiGene.ini) に多少書いたのでそちらを参照。
 
 ## 注意事項
 
