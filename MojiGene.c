@@ -272,17 +272,30 @@ static int mojigene_ch(void)
 
 static int mojigene_count_char_and_chop(int *buf, int limit)
 {
-	int i, n;
+	int i, d, m, n, x, w;
+	int *p = buf;
 
+	/* chop at the nearest size */
 	for (i = n = 0; buf[i]; i++) {
 		if (buf[i] == ' ') {
 			if (n >= limit) {
 				buf[i] = '\0';
 				break;
 			}
+			p = &buf[i + 1]; /* last word position */
 		} else {
 			n++;
 		}
+	}
+
+	/* minimize exceed size */
+	if (n > limit) {
+		m = (MinWordLen > 0) ? MinWordLen : WordLen;
+		x = n - limit; /* exceed size */
+		w = &buf[i] - p; /* last word size */
+		d = ((w - x) < m) ? (w - m) : x;
+		buf[i - d] = '\0';
+		n -= d;
 	}
 
 	return n;
