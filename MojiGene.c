@@ -18,12 +18,17 @@
 #define ConfigFile "MojiGene.ini"
 #define BUFSIZE 256
 
+#define TRIM_NONE 0
+#define TRIM_MODERATE 1
+#define TRIM_STRICT 2
+
 static int WordLen = 5;
 static int MinWordLen = 0;
 static int Chars = 300;
 static int NumRatio = 0x20;
 static int SleepTime = 0;
 static int CharPerLine = 34;
+static int TrimMethod = TRIM_MODERATE;
 static int UseSJIS = 0;
 static int CharGroup0Len;
 static int CharGroup1Len;
@@ -55,6 +60,7 @@ static int set_chars(char *);
 static int set_numratio(char *);
 static int set_sleeptime(char *);
 static int set_charperline(char *);
+static int set_trimmethod(char *);
 static int set_usesjis(char *);
 static int set_header(char *);
 static int set_footer(char *);
@@ -70,6 +76,7 @@ static struct config keywords[] = {
 	{"NumRatio ", set_numratio, false},
 	{"SleepTime ", set_sleeptime, false},
 	{"CharPerLine ", set_charperline, false},
+	{"TrimMethod", set_trimmethod, true},
 	{"UseSJIS ", set_usesjis, false},
 	{"Header ", set_header, true},
 	{"Footer ", set_footer, true},
@@ -133,6 +140,12 @@ static int set_sleeptime(char *buf)
 static int set_charperline(char *buf)
 {
 	CharPerLine = atoi(buf);
+	return 0;
+}
+
+static int set_trimmethod(char *buf)
+{
+	TrimMethod = atoi(buf);
 	return 0;
 }
 
@@ -288,12 +301,15 @@ static int mojigene_count_char_and_chop(int *buf, int limit)
 		}
 	}
 
-	/* minimize exceed size */
-	if (n > limit) {
+	/* trim: minimize exceed size */
+	if (TrimMethod && n > limit) {
 		m = (MinWordLen > 0) ? MinWordLen : WordLen;
 		x = n - limit; /* exceed size */
 		w = &buf[i] - p; /* last word size */
-		d = ((w - x) < m) ? (w - m) : x;
+		if (TrimMethod & TRIM_STRICT)
+			d = x;
+		else
+			d = ((w - x) < m) ? (w - m) : x;
 		buf[i - d] = '\0';
 		n -= d;
 	}
@@ -389,7 +405,7 @@ int main(int argc, char *argv[])
 	do_config();
 
 	/* override by command line */
-	while ((ch = getopt(argc, argv, "W:c:w:n:s:L:SUH:F:o:x:y:d")) != -1) {
+	while ((ch = getopt(argc, argv, "W:c:w:n:s:L:T:SUH:F:o:x:y:d")) != -1) {
 		if ((p = optarg) != NULL) {
 			p = skip_spaces(optarg);
 			remove_trailing_spaces(p);
@@ -402,6 +418,7 @@ int main(int argc, char *argv[])
 		case 'n': set_numratio(p); break;
 		case 's': set_sleeptime(p); break;
 		case 'L': set_charperline(p); break;
+		case 'T': set_trimmethod(p); break;
 		case 'S': set_usesjis("1"); break;
 		case 'U': set_usesjis("0"); break;
 		case 'H': set_header(p); break;
@@ -423,6 +440,7 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "NumRatio = %d\n", NumRatio);
 		fprintf(stderr, "SleepTime = %d\n", SleepTime);
 		fprintf(stderr, "CharPerLine = %d\n", CharPerLine);
+		fprintf(stderr, "TrimMethod = %d\n", TrimMethod);
 		fprintf(stderr, "UseSJIS = %d\n", UseSJIS);
 		fputs("Header = \"", stderr);
 		u_fputs(Header, stderr);
