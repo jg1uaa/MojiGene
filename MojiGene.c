@@ -285,17 +285,16 @@ static int mojigene_ch(void)
 
 static int mojigene_count_char_and_chop(int *buf, int limit)
 {
-	int i, d, m, n, x, w;
-	int *p = buf;
+	int i, d, p, n, x, w;
 
 	/* chop at the nearest size */
-	for (i = n = 0; buf[i]; i++) {
+	for (i = p = n = 0; buf[i]; i++) {
 		if (buf[i] == ' ') {
 			if (n >= limit) {
 				buf[i] = '\0';
 				break;
 			}
-			p = &buf[i + 1]; /* last word position */
+			p = i + 1; /* last word position */
 		} else {
 			n++;
 		}
@@ -303,13 +302,12 @@ static int mojigene_count_char_and_chop(int *buf, int limit)
 
 	/* trim: minimize exceed size */
 	if (TrimMethod && n > limit) {
-		m = (MinWordLen > 0) ? MinWordLen : WordLen;
 		x = n - limit; /* exceed size */
-		w = &buf[i] - p; /* last word size */
+		w = i - p; /* last word size */
 		if (TrimMethod & TRIM_STRICT)
 			d = x;
 		else
-			d = ((w - x) < m) ? (w - m) : x;
+			d = ((w - x) < MinWordLen) ? (w - MinWordLen) : x;
 		buf[i - d] = '\0';
 		n -= d;
 	}
@@ -317,41 +315,34 @@ static int mojigene_count_char_and_chop(int *buf, int limit)
 	return n;
 }
 
-static void mojigene_fill_line(int *buf, int chars)
+static void mojigene_one_word(int *buf, int size)
 {
 	int i;
 
-	for (i = 0; i < chars; i++)
+	for (i = 0; i < size - 1; i++)
 		buf[i] = mojigene_ch();
 
-	buf[i] = '\0';
+	buf[i] = ' ';
 }
 
-static void mojigene_make_word(int *buf, int chars)
+static void mojigene_make_words(int *buf, int size)
 {
-	int i, n, limit;
+	int i, n;
 
-	limit = (MinWordLen > 0) ? MinWordLen : WordLen;
-
-	if (limit >= chars)
+	if (size < MinWordLen + 1)
 		return;
 
 	for (i = 0; ; ) {
-		if (MinWordLen > 0 && WordLen > MinWordLen)
-			n = random_value(MinWordLen, WordLen);
-		else
-			n = WordLen;
+		n = random_value(MinWordLen, WordLen) + 1;
 
-		if (i) n++;
-		i += n;
-
-		if ((chars - i) <= limit)
+		if ((size - i) < n) {
+			buf[(i > 0) ? (i - 1) : 0] = '\0';
 			break;
+		}
 
-		buf[i] = ' ';
+		mojigene_one_word(&buf[i], n);
+		i += n;
 	}
-
-	buf[i] = '\0';
 }
 
 static void mojigene(FILE *fp)
@@ -360,8 +351,7 @@ static void mojigene(FILE *fp)
 	int *buf = calloc(CharPerLine + 1, sizeof(int));
 
 	for (i = 0; i < Chars; ) {
-		mojigene_fill_line(buf, CharPerLine);
-		mojigene_make_word(buf, CharPerLine);
+		mojigene_make_words(buf, CharPerLine + 1);
 		i += mojigene_count_char_and_chop(buf, Chars - i);
 
 		for (n = 0; buf[n]; n++)
@@ -432,6 +422,11 @@ int main(int argc, char *argv[])
 
 	CharGroup0Len = u_strlen(CharGroup0);
 	CharGroup1Len = u_strlen(CharGroup1);
+
+	if (WordLen < 0)
+		WordLen = 0;
+	if (MinWordLen <= 0 || MinWordLen > WordLen)
+		MinWordLen = WordLen;
 
 	if (debug) {
 		fprintf(stderr, "WordLen = %d\n", WordLen);
