@@ -447,6 +447,8 @@ int main(int argc, char *argv[])
 
 	if (WordLen < 0)
 		WordLen = 0;
+	else if (WordLen > CharPerLine)
+		WordLen = CharPerLine;
 	if (MinWordLen <= 0 || MinWordLen > WordLen)
 		MinWordLen = WordLen;
 
