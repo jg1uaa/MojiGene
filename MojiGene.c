@@ -15,8 +15,8 @@
 #include "utf8.h"
 
 #define CRLF "\x0d\x0a"
-#define ConfigFile "MojiGene.ini"
 #define BUFSIZE 256
+static char ConfigFile[BUFSIZE] = "MojiGene.ini";
 
 #define TRIM_NONE 0
 #define TRIM_MODERATE 1
@@ -54,6 +54,7 @@ struct config {
 	bool allow_empty;
 };
 
+static int set_configfile(char *);
 static int set_wordlen(char *);
 static int set_minwordlen(char *);
 static int set_chars(char *);
@@ -105,6 +106,12 @@ static void decode_utf8(int *dst, int dstsize, char *src, bool ignore_space)
 	}
 
 	dst[i] = '\0';
+}
+
+static int set_configfile(char *buf)
+{
+	snprintf(ConfigFile, sizeof(ConfigFile), "%s", buf);
+	return 0;
 }
 
 static int set_wordlen(char *buf)
@@ -387,15 +394,30 @@ static int do_main(void)
 
 int main(int argc, char *argv[])
 {
+#define OPT_ARG "C:W:w:c:n:s:L:T:SUH:F:o:x:y:d"
+
 	int ch;
 	char *p;
 	bool debug = false;
 
 	initialize_random_generator();
+
+	/* load configuration file */
+	while ((ch = getopt(argc, argv, OPT_ARG)) != -1) {
+		if ((p = optarg) != NULL) {
+			p = skip_spaces(optarg);
+			remove_trailing_spaces(p);
+		}
+
+		switch (ch) {
+		case 'C': set_configfile(p); break;
+		}
+	}
 	do_config();
 
 	/* override by command line */
-	while ((ch = getopt(argc, argv, "W:c:w:n:s:L:T:SUH:F:o:x:y:d")) != -1) {
+	optind = 1; /* rescan */
+	while ((ch = getopt(argc, argv, OPT_ARG)) != -1) {
 		if ((p = optarg) != NULL) {
 			p = skip_spaces(optarg);
 			remove_trailing_spaces(p);
@@ -429,6 +451,7 @@ int main(int argc, char *argv[])
 		MinWordLen = WordLen;
 
 	if (debug) {
+		fprintf(stderr, "ConfigFile = %s\n", ConfigFile);
 		fprintf(stderr, "WordLen = %d\n", WordLen);
 		fprintf(stderr, "MinWordLen = %d\n", MinWordLen);
 		fprintf(stderr, "Chars = %d\n", Chars);
