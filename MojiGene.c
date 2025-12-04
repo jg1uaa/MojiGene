@@ -14,6 +14,9 @@
 #include "rng.h"
 #include "utf8.h"
 
+/* BSD's <sys/param.h> has nitems(), but others not */
+#define N_ITEMS(_x) (sizeof((_x)) / sizeof((_x)[0]))
+
 #define CRLF "\x0d\x0a"
 #define BUFSIZE 256
 static char ConfigFile[BUFSIZE] = "MojiGene.ini";
@@ -164,32 +167,32 @@ static int set_usesjis(char *buf)
 
 static int set_header(char *buf)
 {
-	decode_utf8(Header, sizeof(Header), buf, false);
+	decode_utf8(Header, N_ITEMS(Header), buf, false);
 	return 0;
 }
 
 static int set_footer(char *buf)
 {
-	decode_utf8(Footer, sizeof(Footer), buf, false);
+	decode_utf8(Footer, N_ITEMS(Footer), buf, false);
 	return 0;
 }
 
 static int set_filename(char *buf)
 {
-	snprintf(FileName, sizeof(FileName), "%s", buf);
+	snprintf(FileName, N_ITEMS(FileName), "%s", buf);
 	return 0;
 }
 
 static int set_chargroup0(char *buf)
 {
-	decode_utf8(CharGroup0, sizeof(CharGroup0), buf, true);
+	decode_utf8(CharGroup0, N_ITEMS(CharGroup0), buf, true);
 	CharGroup1[0] = '\0';
 	return 0;
 }
 
 static int set_chargroup1(char *buf)
 {
-	decode_utf8(CharGroup1, sizeof(CharGroup1), buf, true);
+	decode_utf8(CharGroup1, N_ITEMS(CharGroup1), buf, true);
 	return 0;
 }
 
