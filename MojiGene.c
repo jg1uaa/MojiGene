@@ -51,6 +51,9 @@ static int CharGroup1[BUFSIZE] = {
 	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '\0',
 };
 
+#define DELIMITER_DEFAULT ' '
+static int Delimiter = DELIMITER_DEFAULT;
+
 struct config {
 	char *string;
 	int (*function)(char *);
@@ -71,6 +74,7 @@ static int set_footer(char *);
 static int set_filename(char *);
 static int set_chargroup0(char *);
 static int set_chargroup1(char *);
+static int set_delimiter(char *);
 
 static struct config keywords[] = {
 	/* need a space after keyword */
@@ -87,6 +91,7 @@ static struct config keywords[] = {
 	{"FileName ", set_filename, false},
 	{"CharGroup0 ", set_chargroup0, true},
 	{"CharGroup1 ", set_chargroup1, true},
+	{"Delimiter ", set_delimiter, true},
 };
 
 static void decode_utf8(int *dst, int dstsize, char *src, bool ignore_space)
@@ -196,6 +201,23 @@ static int set_chargroup1(char *buf)
 	return 0;
 }
 
+static int set_delimiter(char *buf)
+{
+	int tmp[2];
+
+	decode_utf8(tmp, N_ITEMS(tmp), buf, true);
+	if (tmp[0]) Delimiter = tmp[0];
+	return 0;
+}
+
+static int *u_strchr(int *u_str, int u_chr)
+{
+	for (; *u_str; u_str++)
+		if (*u_str == u_chr) return u_str;
+
+	return NULL;
+}
+
 static int u_strlen(int *u_str)
 {
 	int i;
@@ -299,7 +321,7 @@ static int mojigene_count_char_and_chop(int *buf, int limit)
 
 	/* chop at the nearest size */
 	for (i = p = n = 0; buf[i]; i++) {
-		if (buf[i] == ' ') {
+		if (buf[i] == Delimiter) {
 			if (n >= limit) {
 				buf[i] = '\0';
 				break;
@@ -332,7 +354,7 @@ static void mojigene_one_word(int *buf, int size)
 	for (i = 0; i < size - 1; i++)
 		buf[i] = mojigene_ch();
 
-	buf[i] = ' ';
+	buf[i] = Delimiter;
 }
 
 static void mojigene_make_words(int *buf, int size)
@@ -397,7 +419,7 @@ static int do_main(void)
 
 int main(int argc, char *argv[])
 {
-#define OPT_ARG "C:W:w:c:n:s:L:T:SUH:F:o:x:y:d"
+#define OPT_ARG "C:W:w:c:n:s:L:T:SUH:F:o:x:y:D:d"
 
 	int ch;
 	char *p;
@@ -441,6 +463,7 @@ int main(int argc, char *argv[])
 		case 'o': set_filename(p); break;
 		case 'x': set_chargroup0(p); break;
 		case 'y': set_chargroup1(p); break;
+		case 'D': set_delimiter(p); break;
 		case 'd': debug = true; break;
 		}
 	}
@@ -454,6 +477,10 @@ int main(int argc, char *argv[])
 		WordLen = CharPerLine;
 	if (MinWordLen <= 0 || MinWordLen > WordLen)
 		MinWordLen = WordLen;
+
+	if (u_strchr(CharGroup0, Delimiter) != NULL ||
+	    u_strchr(CharGroup1, Delimiter) != NULL)
+		Delimiter = DELIMITER_DEFAULT;
 
 	if (debug) {
 		fprintf(stderr, "ConfigFile = %s\n", ConfigFile);
@@ -480,6 +507,7 @@ int main(int argc, char *argv[])
 		fputs("CharGroup1 = \"", stderr);
 		u_fputs(CharGroup1, stderr);
 		fputs("\"\n", stderr);
+		fprintf(stderr, "Delimiter = %#x\n", Delimiter);
 	}
 
 #if defined(__LCC__)
