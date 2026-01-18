@@ -18,7 +18,7 @@
 #define N_ITEMS(_x) (sizeof((_x)) / sizeof((_x)[0]))
 
 #define CRLF "\x0d\x0a"
-#define BUFSIZE 256
+#define BUFSIZE 4096
 static char ConfigFile[BUFSIZE] = "MojiGene.ini";
 
 #define TRIM_NONE 0
