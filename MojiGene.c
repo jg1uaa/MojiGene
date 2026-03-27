@@ -54,6 +54,10 @@ static int CharGroup1[BUFSIZE] = {
 #define DELIMITER_DEFAULT ' '
 static int Delimiter = DELIMITER_DEFAULT;
 
+static int PageBreak[BUFSIZE] = {
+	'\0',
+};
+
 struct config {
 	char *string;
 	int (*function)(char *);
@@ -75,6 +79,7 @@ static int set_filename(char *);
 static int set_chargroup0(char *);
 static int set_chargroup1(char *);
 static int set_delimiter(char *);
+static int set_pagebreak(char *);
 
 static struct config keywords[] = {
 	/* need a space after keyword */
@@ -92,6 +97,7 @@ static struct config keywords[] = {
 	{"CharGroup0 ", set_chargroup0, true},
 	{"CharGroup1 ", set_chargroup1, true},
 	{"Delimiter ", set_delimiter, true},
+	{"PageBreak ", set_pagebreak, true},
 };
 
 static void decode_utf8(int *dst, int dstsize, char *src, bool ignore_space)
@@ -207,6 +213,12 @@ static int set_delimiter(char *buf)
 
 	decode_utf8(tmp, N_ITEMS(tmp), buf, true);
 	if (tmp[0]) Delimiter = tmp[0];
+	return 0;
+}
+
+static int set_pagebreak(char *buf)
+{
+	decode_utf8(PageBreak, N_ITEMS(PageBreak), buf, false);
 	return 0;
 }
 
@@ -388,6 +400,8 @@ static void mojigene(FILE *fp)
 
 		for (n = 0; buf[n]; n++)
 			u_fputc(buf[n], fp);
+		if (i < Chars)
+			u_fputs(PageBreak, fp);
 		fputs(CRLF, fp);
 	}
 
@@ -419,7 +433,7 @@ static int do_main(void)
 
 int main(int argc, char *argv[])
 {
-#define OPT_ARG "C:W:w:c:n:s:L:T:SUH:F:o:x:y:D:d"
+#define OPT_ARG "C:W:w:c:n:s:L:T:SUH:F:o:x:y:D:P:d"
 
 	int ch;
 	char *p;
@@ -464,6 +478,7 @@ int main(int argc, char *argv[])
 		case 'x': set_chargroup0(p); break;
 		case 'y': set_chargroup1(p); break;
 		case 'D': set_delimiter(p); break;
+		case 'P': set_pagebreak(p); break;
 		case 'd': debug = true; break;
 		}
 	}
@@ -508,6 +523,9 @@ int main(int argc, char *argv[])
 		u_fputs(CharGroup1, stderr);
 		fputs("\"\n", stderr);
 		fprintf(stderr, "Delimiter = %#x\n", Delimiter);
+		fputs("PageBreak = \"", stderr);
+		u_fputs(PageBreak, stderr);
+		fputs("\"\n", stderr);
 	}
 
 #if defined(__LCC__)
