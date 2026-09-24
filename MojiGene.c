@@ -91,7 +91,7 @@ static struct config keywords[] = {
 	{"NumRatio ", set_numratio, false},
 	{"SleepTime ", set_sleeptime, false},
 	{"CharPerLine ", set_charperline, false},
-	{"TrimMethod", set_trimmethod, true},
+	{"TrimMethod", set_trimmethod, false},
 	{"UseSJIS ", set_usesjis, false},
 	{"Header ", set_header, true},
 	{"Footer ", set_footer, true},
