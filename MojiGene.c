@@ -54,6 +54,7 @@ static int CharGroup1[BUFSIZE] = {
 #define DELIMITER_DEFAULT ' '
 static int Delimiter = DELIMITER_DEFAULT;
 
+static int Append = 0;
 static int PageBreak[BUFSIZE] = {
 	'\0',
 };
@@ -79,6 +80,7 @@ static int set_filename(char *);
 static int set_chargroup0(char *);
 static int set_chargroup1(char *);
 static int set_delimiter(char *);
+static int set_append(char *);
 static int set_pagebreak(char *);
 
 static struct config keywords[] = {
@@ -97,6 +99,7 @@ static struct config keywords[] = {
 	{"CharGroup0 ", set_chargroup0, true},
 	{"CharGroup1 ", set_chargroup1, true},
 	{"Delimiter ", set_delimiter, true},
+	{"Append ", set_append, false},
 	{"PageBreak ", set_pagebreak, true},
 };
 
@@ -213,6 +216,12 @@ static int set_delimiter(char *buf)
 
 	decode_utf8(tmp, N_ITEMS(tmp), buf, true);
 	if (tmp[0]) Delimiter = tmp[0];
+	return 0;
+}
+
+static int set_append(char *buf)
+{
+	Append = atoi(buf) ? 1 : 0;
 	return 0;
 }
 
@@ -412,7 +421,8 @@ static int do_main(void)
 {
 	FILE *fp;
 
-	fp = strcmp("-", FileName) ? fopen(FileName, "wb") : stdout;
+	fp = strcmp("-", FileName) ?
+		fopen(FileName, Append ? "ab" : "wb") : stdout;
 	if (fp == NULL)
 		return -1;
 
@@ -433,7 +443,7 @@ static int do_main(void)
 
 int main(int argc, char *argv[])
 {
-#define OPT_ARG "C:W:w:c:n:s:L:T:SUH:F:o:x:y:D:P:d"
+#define OPT_ARG "C:W:w:c:n:s:L:T:SUH:F:o:x:y:D:ANP:d"
 
 	int ch;
 	char *p;
@@ -478,6 +488,8 @@ int main(int argc, char *argv[])
 		case 'x': set_chargroup0(p); break;
 		case 'y': set_chargroup1(p); break;
 		case 'D': set_delimiter(p); break;
+		case 'A': set_append("1"); break;
+		case 'N': set_append("0"); break;
 		case 'P': set_pagebreak(p); break;
 		case 'd': debug = true; break;
 		}
@@ -523,6 +535,7 @@ int main(int argc, char *argv[])
 		u_fputs(CharGroup1, stderr);
 		fputs("\"\n", stderr);
 		fprintf(stderr, "Delimiter = %#x\n", Delimiter);
+		fprintf(stderr, "Append = %d\n", Append);
 		fputs("PageBreak = \"", stderr);
 		u_fputs(PageBreak, stderr);
 		fputs("\"\n", stderr);
